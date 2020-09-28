@@ -1,0 +1,90 @@
+#ENTREGA 2
+#librerias a utilizar posiblemente
+```{r}
+library(rio)
+library(haven)
+library(htmltab)
+library(tidyr)
+library(stringr)#para limpieza de columnas (extracción de numeros, particiones)
+library(magrittr)
+library(readr) #para extraer un único numero de la columna
+```
+### DATAS
+#extrayendo data de relación de PROVINCIAS - PRO
+```{r}
+LinkP='https://es.wikipedia.org/wiki/Anexo:Provincias_del_Per%C3%BA'
+xpathP= '//*[@id="mw-content-text"]/div[1]/table'
+
+PRO= htmltab(doc= LinkP, which = xpathP)
+PRO[duplicated(PRO$Provincia),] #NO HAY 
+```
+#extayendo data COMISARIAS - COM
+```{r}
+linkCOM= 'https://github.com/akemygonal/TRABAJO-ESTADISTICA/blob/master/COMISARIAS%20SUCIA.sav?raw=true'
+COM= import(linkCOM)
+```
+### LIMPIEZA DE BASES
+#limpieza PROVINCIAS REFERENCIAL
+```{r}
+#Seleccionamos las columnas a usar
+PRO= PRO[,c(2,3)]
+
+#Eliminamos los espacios hallados en los nombres de la columna Provincia
+gsub(' ',"",PRO$Provincia)
+PRO$Provincia = gsub(' ',"",PRO$Provincia)
+PRO$Provincia
+
+#Eliminamos los espacios hallados en los nombres de la columna Provincia
+gsub(' ',"",PRO$Provincia)
+
+#Eliminamos problema de tildes
+PRO$Provincia = gsub(' ',"",PRO$Provincia)
+PRO$Provincia = gsub('Ã¡',"á",PRO$Provincia)
+PRO$Provincia = gsub('Ã©',"é",PRO$Provincia)
+PRO$Provincia = gsub('Ã³',"ó",PRO$Provincia)
+PRO$Provincia = gsub('Ãº',"ú",PRO$Provincia)
+PRO$Provincia = gsub('Ã',"í",PRO$Provincia)
+PRO$Provincia = gsub('±',"ñ",PRO$Provincia)
+PRO$Provincia
+PRO[PRO$Provincia=='Prov.Const.delCallao',"Provincia"]="Callao"
+
+#Vizualimos los nombres de la provincias
+table(PRO$Provincia)
+```
+#limpieza COM
+```{r}
+#Seleccionamos las columnas a usar
+COM= COM[, c(1,2)]
+
+#Renombrando
+names(COM)[1] = "COM ID"
+names(COM)[2] = "Ubigeo"
+
+#quitamos los 2 ultimos digitos del Ubigeo
+COM$Ubigeo= substr(COM$Ubigeo, start = 1, stop = 4)
+
+#Merge necesario con PRO para tener las provincias de cada CEM
+library(readr)
+COM_FINAL=merge(COM,PRO, by.x= 'Ubigeo', by.y='Ubigeo')
+
+#realizamos la suma/conteo de las provincias, según Ubigeo, que se repiten 
+names(COM_FINAL)
+COM_FINAL$Provincia=1
+COM_FINAL <- aggregate (cbind(Provincia)~Ubigeo, data=COM_FINAL, sum)
+
+myvars <- c("Ubigeo", "Provincia")
+COM_FINAL <- COM_FINAL[myvars]
+
+##cambiamos el nombre de Provincias a Número de COMS
+names(COM_FINAL)[2] = "Número de COMS"
+
+#Merge para la data COM_FINAL con PRO
+COM_FINAL=merge(COM_FINAL,PRO, by.x= 'Ubigeo', by.y='Ubigeo')
+
+#necesario eliminar el Ubigeo de COM_FINAL para el MERGE FINAL
+COM_FINAL$Ubigeo=NULL
+```
+#EXPORTAR DATA
+```{r}
+export(COM_FINAL,"COM_FINALLIMPIA.xlsx")
+```
