@@ -1,0 +1,99 @@
+#ENTREGA 2
+#librerias a utilizar posiblemente
+```{r}
+library(rio)
+library(haven)
+library(htmltab)
+library(tidyr)
+library(stringr)#para limpieza de columnas (extracción de numeros, particiones)
+library(magrittr)
+library(readr) #para extraer un único numero de la columna
+```
+### DATAS
+#extrayendo data de relación de PROVINCIAS - PRO
+```{r}
+LinkP='https://es.wikipedia.org/wiki/Anexo:Provincias_del_Per%C3%BA'
+xpathP= '//*[@id="mw-content-text"]/div[1]/table'
+
+PRO= htmltab(doc= LinkP, which = xpathP)
+PRO[duplicated(PRO$Provincia),] #NO HAY 
+```
+#extrayendo data CEM
+```{r}
+LinkCEM = 'https://github.com/akemygonal/TRABAJO-ESTADISTICA/blob/master/CEMS%20SUCIA.sav?raw=true'
+CEM = import(LinkCEM)
+```
+### LIMPIEZA DE BASES
+#limpieza PROVINCIAS REFERENCIAL
+```{r}
+#Seleccionamos las columnas a usar
+PRO= PRO[,c(2,3)]
+
+#Eliminamos los espacios hallados en los nombres de la columna Provincia
+gsub(' ',"",PRO$Provincia)
+PRO$Provincia = gsub(' ',"",PRO$Provincia)
+PRO$Provincia
+
+#Eliminamos los espacios hallados en los nombres de la columna Provincia
+gsub(' ',"",PRO$Provincia)
+
+#Eliminamos problema de tildes
+PRO$Provincia = gsub(' ',"",PRO$Provincia)
+PRO$Provincia = gsub('Ã¡',"á",PRO$Provincia)
+PRO$Provincia = gsub('Ã©',"é",PRO$Provincia)
+PRO$Provincia = gsub('Ã³',"ó",PRO$Provincia)
+PRO$Provincia = gsub('Ãº',"ú",PRO$Provincia)
+PRO$Provincia = gsub('Ã',"í",PRO$Provincia)
+PRO$Provincia = gsub('±',"ñ",PRO$Provincia)
+PRO$Provincia
+PRO[PRO$Provincia=='Prov.Const.delCallao',"Provincia"]="Callao"
+
+#Vizualimos los nombres de la provincias
+table(PRO$Provincia)
+```
+#limpieza CEM
+```{r}
+#Seleccionamos las columnas a usar
+CEM= CEM[, c(1,25,26)]
+
+##Se realiza el Paste para Ubigeo
+CEM$Ubigeo= paste(CEM$DPTO_DOMICILIO, CEM$PROV_DOMICILIO)
+
+#vemos la estructura
+str(CEM$ubigeo)
+
+#seleccionamos las columnas a usar
+CEM= CEM[,c(1,4)]
+
+#eliminamos los espacios de los números del Ubigeo
+CEM$Ubigeo= gsub(' ','',CEM$Ubigeo)
+
+#Renombrando variables
+names(CEM)[1] = "CEM"
+names(CEM)[2] = "Ubigeo"
+
+#Merge necesario con PRO para tener las provincias de cada CEM
+library(readr)
+CEM_FINAL=merge(CEM,PRO, by.x= 'Ubigeo', by.y='Ubigeo')
+
+#realizamos la suma/conteo de las provincias, según Ubigeo, que se repiten
+names(CEM_FINAL)
+CEM_FINAL$Provincia=1
+CEM_FINAL <- aggregate (cbind(Provincia)~Ubigeo, data=CEM_FINAL, sum)
+
+myvars <- c("Ubigeo", "Provincia")
+CEM_FINAL <- CEM_FINAL[myvars]
+
+#cambiamos el nombre de Provincias a Número denunicas CEMs
+names(CEM_FINAL)[2] = "Número denuncias CEMS"
+
+#Merge para la data CEM_FINAL con PRO
+CEM_FINAL=merge(CEM_FINAL,PRO, by.x= 'Ubigeo', by.y='Ubigeo')
+
+#necesario eliminar el Ubigeo de la data CEM_FINAL para el MERGE FINAL
+CEM_FINAL$Ubigeo=NULL
+```
+#EXPORTAR DATAS
+```{r}
+export(CEM_FINAL,"CEM_FINALLIMPIA.xlsx")
+```
